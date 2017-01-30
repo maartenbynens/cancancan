@@ -323,6 +323,15 @@ describe CanCan::Ability do
     expect(@ability.can?(:read, 6..8)).to be(false)
   end
 
+  it 'allows hash subject attributes' do
+    require 'ostruct'
+    @ability.can :read, OpenStruct, a: { b: 4 }
+    expect(@ability.can?(:read, OpenStruct.new(a: { b: 4 }))).to be(true)
+    expect(@ability.can?(:read, OpenStruct.new(a: { b: 5 }))).to be(false)
+    expect(@ability.can?(:read, OpenStruct.new(a: { c: 4 }))).to be(false)
+    expect(@ability.can?(:read, OpenStruct.new(c: { b: 4 }))).to be(false)
+  end
+
   it "matches any element passed in to nesting if it's an array (for has_many associations)" do
     @ability.can :read, Range, to_a: { to_i: 3 }
     expect(@ability.can?(:read, 1..5)).to be(true)

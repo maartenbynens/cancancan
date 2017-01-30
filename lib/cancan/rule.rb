@@ -149,6 +149,8 @@ module CanCan
     def hash_condition_match?(attribute, value)
       if attribute.kind_of?(Array) || (defined?(ActiveRecord) && attribute.kind_of?(ActiveRecord::Relation))
         attribute.any? { |element| matches_conditions_hash?(element, value) }
+      elsif attribute.kind_of?(Hash)
+        matches_conditions_hash?(OpenStruct.new(attribute), value)
       else
         !attribute.nil? && matches_conditions_hash?(attribute, value)
       end
