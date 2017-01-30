@@ -119,7 +119,6 @@ if defined? CanCan::ModelAdapters::ActiveRecord4Adapter
           ActiveRecord::Schema.define do
             create_table(:parents) do |t|
               t.timestamps null: false
-              t.jsonb :data, null: false, default: '{}'
             end
 
             create_table(:children) do |t|
@@ -136,6 +135,7 @@ if defined? CanCan::ModelAdapters::ActiveRecord4Adapter
             belongs_to :parent
           end
 
+          [Parent, Child].each(&:reset_column_information)
           (@ability = double).extend(CanCan::Ability)
         end
 
@@ -151,6 +151,12 @@ if defined? CanCan::ModelAdapters::ActiveRecord4Adapter
         end
 
         it 'supports json attributes like associations' do
+          ActiveRecord::Schema.define do
+            add_column :parents, :data, :jsonb, null: false, default: '{}'
+          end
+          Parent.reset_column_information
+          expect(Parent.column_names).to include('data')
+
           @ability.can :read, Parent, data: { test: 1 }
 
           adapter = @ability.model_adapter(Parent, :read)

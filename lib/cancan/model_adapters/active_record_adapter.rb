@@ -139,6 +139,7 @@ module CanCan
               name
             else
               { name => clean_joins(nested, model_class.reflect_on_association(name).klass.name.constantize) }
+            end
           end 
         end.compact
       end
