@@ -159,11 +159,11 @@ if defined? CanCan::ModelAdapters::ActiveRecord4Adapter
 
           @ability.can :read, Parent, data: { test: 1 }
 
-          adapter = @ability.model_adapter(Parent, :read)
           parent = Parent.create!(data: { test: 1 })
           Parent.create!(data: { test: 2 })
           Parent.create!(data: { foo: 1 })
           Parent.create!
+
           expect(Parent.accessible_by(@ability)).to eq([parent])
         end
       end
