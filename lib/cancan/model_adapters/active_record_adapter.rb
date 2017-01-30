@@ -17,7 +17,7 @@ module CanCan
       #   query(:manage, User).conditions # => "not (self_managed = 't') AND ((manager_id = 1) OR (id = 1))"
       #
       def conditions
-        if @rules.size == 1 && @rules.first.base_behavior
+        if @rules.size == 1 && @rules.first.base_behavior && @rules.first.conditions.keys.none? { |k| @model_class.columns_hash[k.to_s].try(:sql_type) == 'jsonb' }
           # Return the conditions directly if there's just one definition
           tableized_conditions(@rules.first.conditions).dup
         else
@@ -30,7 +30,7 @@ module CanCan
       def tableized_conditions(conditions, model_class = @model_class)
         return conditions unless conditions.kind_of? Hash
         conditions.inject({}) do |result_hash, (name, value)|
-          if value.kind_of? Hash
+          if value.kind_of?(Hash) && model_class.reflect_on_association(name)
             value = value.dup
             association_class = model_class.reflect_on_association(name).klass.name.constantize
             nested = value.inject({}) do |nested,(k,v)|
@@ -132,12 +132,15 @@ module CanCan
       end
 
       # Removes empty hashes and moves everything into arrays.
-      def clean_joins(joins_hash)
-        joins = []
-        joins_hash.each do |name, nested|
-          joins << (nested.empty? ? name : { name => clean_joins(nested) })
-        end
-        joins
+      def clean_joins(joins_hash, model_class = @model_class)
+        joins_hash.map do |name, nested|
+          if model_class.reflect_on_association(name)
+            if nested.empty?
+              name
+            else
+              { name => clean_joins(nested, model_class.reflect_on_association(name).klass.name.constantize) }
+          end 
+        end.compact
       end
     end
   end

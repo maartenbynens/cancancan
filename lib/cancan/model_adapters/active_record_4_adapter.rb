@@ -41,27 +41,43 @@ module CanCan
           table = @model_class.send(:arel_table)
           table_metadata = ActiveRecord::TableMetadata.new(@model_class, table)
           predicate_builder = ActiveRecord::PredicateBuilder.new(table_metadata)
+          
+          sanitize_sql_private(conditions) do |method, conditions| 
+            predicate_builder.send(method, conditions)
+          end
 
-          conditions = predicate_builder.resolve_column_aliases(conditions)
-          conditions = @model_class.send(:expand_hash_conditions_for_aggregates, conditions)
 
-          conditions.stringify_keys!
-
-          predicate_builder.build_from_hash(conditions).map { |b|
-            @model_class.send(:connection).visitor.compile b
-          }.join(' AND ')
         elsif ActiveRecord::VERSION::MINOR >= 2 && Hash === conditions
           table = Arel::Table.new(@model_class.send(:table_name))
 
-          conditions = ActiveRecord::PredicateBuilder.resolve_column_aliases @model_class, conditions
-          conditions = @model_class.send(:expand_hash_conditions_for_aggregates, conditions)
+          sanitize_sql_private(conditions, @model_class, table) do |method, model_class, *args|
+            ActiveRecord::PredicateBuilder.send(method, model_class, *args)
+          end
 
-          ActiveRecord::PredicateBuilder.build_from_hash(@model_class, conditions, table).map { |b|
-            @model_class.send(:connection).visitor.compile b
-          }.join(' AND ')
         else
           @model_class.send(:sanitize_sql, conditions)
         end
+      end
+
+      private
+
+      def sanitize_sql_private(rule_conditions, model_class = nil, table = nil)
+        conditions = yield(:resolve_column_aliases, model_class, rule_conditions)
+        conditions = @model_class.send(:expand_hash_conditions_for_aggregates, conditions)
+
+        conditions.stringify_keys! #if args.length == 1
+
+        json_conditions, conditions = conditions.partition { |k,v| v.is_a?(Hash) && @model_class.columns.find { |c| c.name == k.to_s } }.map(&:to_h)
+
+        conditions = yield(:build_from_hash, model_class, conditions, table).map { |b|
+          @model_class.send(:connection).visitor.compile b
+        }
+
+        json_conditions = json_conditions.map do |k,v|
+          kk, vv = v.first
+          @model_class.send(:sanitize_sql, ["#{@model_class.send(:table_name)}.#{k}->'#{kk}' = :value", value: vv.to_s])
+        end
+        (conditions + json_conditions).join(' AND ')
       end
     end
   end

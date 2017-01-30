@@ -119,6 +119,7 @@ if defined? CanCan::ModelAdapters::ActiveRecord4Adapter
           ActiveRecord::Schema.define do
             create_table(:parents) do |t|
               t.timestamps null: false
+              t.jsonb :data, null: false, default: '{}'
             end
 
             create_table(:children) do |t|
@@ -146,6 +147,17 @@ if defined? CanCan::ModelAdapters::ActiveRecord4Adapter
           Child.create!(parent: parent, created_at: 1.hours.ago)
           Child.create!(parent: parent, created_at: 2.hours.ago)
 
+          expect(Parent.accessible_by(@ability)).to eq([parent])
+        end
+
+        it 'supports json attributes like associations' do
+          @ability.can :read, Parent, data: { test: 1 }
+
+          adapter = @ability.model_adapter(Parent, :read)
+          parent = Parent.create!(data: { test: 1 })
+          Parent.create!(data: { test: 2 })
+          Parent.create!(data: { foo: 1 })
+          Parent.create!
           expect(Parent.accessible_by(@ability)).to eq([parent])
         end
       end

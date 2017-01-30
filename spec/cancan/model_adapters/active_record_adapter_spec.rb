@@ -47,6 +47,7 @@ if defined? CanCan::ModelAdapters::ActiveRecordAdapter
       end
 
       class Project < ActiveRecord::Base
+        has_many :comments
       end
 
       class Category < ActiveRecord::Base
@@ -59,6 +60,7 @@ if defined? CanCan::ModelAdapters::ActiveRecordAdapter
         has_many :mentions
         has_many :mentioned_users, through: :mentions, source: :user
         belongs_to :user
+        belongs_to :project
       end
 
       class Mention < ActiveRecord::Base
@@ -306,8 +308,8 @@ if defined? CanCan::ModelAdapters::ActiveRecordAdapter
 
     it 'merges separate joins into a single array' do
       @ability.can :read, Article, project: { blocked: false }
-      @ability.can :read, Article, company: { admin: true }
-      expect(@ability.model_adapter(Article, :read).joins.inspect).to orderlessly_match([:company, :project].inspect)
+      @ability.can :read, Article, category: { visible: true }
+      expect(@ability.model_adapter(Article, :read).joins.inspect).to orderlessly_match([:category, :project].inspect)
     end
 
     it 'merges same joins into a single array' do
